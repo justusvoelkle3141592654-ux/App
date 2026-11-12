@@ -10,6 +10,7 @@ import importlib
 import logging
 import sys
 from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 IS_WINDOWS = sys.platform.startswith("win")
@@ -18,13 +19,19 @@ _EXCLUDE_FROM_HISTORY = "ExcludeClipboardContentFromMonitorProcessing"
 _EXCLUDE_FROM_DUMP = "CanIncludeInDump"
 
 
+def _user32() -> Any:
+    """Windows user32.dll. Looked up with getattr so type checking is the same on every platform."""
+    import ctypes
+
+    return getattr(ctypes, "windll").user32  # noqa: B009 - attribute exists only on Windows
+
+
 def clipboard_marked_private() -> bool:
     """True if the copying app set the Windows privacy flags (password managers do this)."""
     if not IS_WINDOWS:
         return False
-    import ctypes
 
-    user32 = ctypes.windll.user32  # type: ignore[attr-defined]
+    user32 = _user32()
     for name in (_EXCLUDE_FROM_HISTORY, _EXCLUDE_FROM_DUMP):
         fmt = user32.RegisterClipboardFormatW(name)
         if fmt and user32.IsClipboardFormatAvailable(fmt):
@@ -52,7 +59,6 @@ class HotkeyRegistration:
     def register(self, modifiers: int, virtual_key: int) -> bool:
         if not IS_WINDOWS:
             return False
-        import ctypes
 
         from PySide6.QtCore import QAbstractNativeEventFilter
         from PySide6.QtWidgets import QApplication
@@ -60,9 +66,7 @@ class HotkeyRegistration:
         app = QApplication.instance()
         if app is None:
             return False
-        if not ctypes.windll.user32.RegisterHotKey(  # type: ignore[attr-defined]
-            None, self._id, modifiers | self.MOD_NOREPEAT, virtual_key
-        ):
+        if not _user32().RegisterHotKey(None, self._id, modifiers | self.MOD_NOREPEAT, virtual_key):
             log.warning("Global hotkey could not be registered (already in use?)")
             return False
         callback = self._callback
@@ -87,12 +91,11 @@ class HotkeyRegistration:
     def unregister(self) -> None:
         if not IS_WINDOWS:
             return
-        import ctypes
 
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()
-        ctypes.windll.user32.UnregisterHotKey(None, self._id)  # type: ignore[attr-defined]
+        _user32().UnregisterHotKey(None, self._id)
         if app is not None and self._filter is not None:
             app.removeNativeEventFilter(self._filter)  # type: ignore[arg-type]
         self._filter = None

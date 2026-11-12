@@ -30,7 +30,7 @@ from desktop_organizer.core.theme import SPACE_2
 
 def open_folder(path: Path) -> None:
     if sys.platform.startswith("win"):
-        os.startfile(str(path))  # type: ignore[attr-defined]
+        getattr(os, "startfile")(str(path))  # noqa: B009
     else:
         subprocess.Popen(["xdg-open", str(path)])
 
