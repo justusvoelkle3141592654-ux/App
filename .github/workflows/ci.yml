@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, types, tests, build (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: |
+          ruff check src tests build
+          ruff format --check src tests build
+
+      - name: Type check
+        run: mypy
+
+      - name: Tests
+        run: pytest
+
+      - name: Dependency vulnerability check
+        run: pip-audit -r requirements.txt
+
+      - name: Build and smoke-test the executable
+        run: python build/build.py --smoke
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DesktopOrganizer-ci
+          path: |
+            dist/DesktopOrganizer.exe
+            dist/DesktopOrganizer.exe.sha256
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,65 @@
+name: Release
+
+# Runs when a version tag such as v1.0.0 is pushed. The tag must match the version in the code.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Check that the tag matches the code version
+        shell: bash
+        run: |
+          VERSION=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('src/desktop_organizer/__init__.py').read_text(encoding='utf-8')).group(1))")
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match code version ${VERSION}" >&2
+            exit 1
+          fi
+          echo "Version ${VERSION} confirmed"
+
+      - name: Verify before release
+        run: |
+          ruff check src tests build
+          mypy
+          pytest
+
+      - name: Build and smoke-test the executable
+        run: python build/build.py --smoke
+
+      - name: Write release notes from CHANGELOG
+        shell: bash
+        run: python build/release_notes.py > release-notes.md
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/DesktopOrganizer.exe
+            dist/DesktopOrganizer.exe.sha256
+          body_path: release-notes.md
+          fail_on_unmatched_files: true
