@@ -63,6 +63,7 @@ function say(text) {
   console.log('[chat]', text);
 }
 game.say = say;
+game.addXP = (n) => game.player?.addXp(n);
 game._dbg = () => ({ hitBlock, hitEntity: !!hitEntity, brk: { ...brk }, locked, noLock, canAct: canAct(), mouse: { ...game.mouse }, attackCd, use: { ...use } });
 
 function nextFrame() { return new Promise((r) => requestAnimationFrame(() => r())); }
@@ -366,7 +367,8 @@ function attackEntity() {
   const ep = entPos(e);
   let dx = ep.x - p.pos.x, dz = ep.z - p.pos.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   const kb = p.sprinting ? 1.8 : 1;
-  game.entities.damageMob(e, dmg, new THREE.Vector3(dx * kb, 0.3, dz * kb));
+  game.entities.damageMob(e, dmg, { x: dx, z: dz });
+  if (p.sprinting && e.vel) { e.vel.x += dx * 4; e.vel.z += dz * 4; }
   startSwing();
   if (crit) { game.audio?.crit(); game.renderer?.addParticles?.('explosion', ep.x, ep.y + 1, ep.z, 0, 4); } else game.audio?.hit();
   if (!isCreative()) {
@@ -558,7 +560,7 @@ function fireBow(power) {
   const e = game.entities;
   if (e?.shootArrow) {
     try {
-      e.shootArrow(eye.x, eye.y - 0.1, eye.z, dir.x, dir.y, dir.z, speed * 20, { owner: 'player', fromPlayer: true, damage: 2 + power * 7, power, crit: power >= 1 });
+      e.shootArrow(eye.x, eye.y - 0.1, eye.z, dir.x, dir.y, dir.z, speed * 20, { owner: 'player', damage: 1 + power * 5.5, crit: power >= 1 });
     } catch (err) { console.error('shootArrow', err); }
   }
   if (!creative) game.inventory.damageSelected(1);

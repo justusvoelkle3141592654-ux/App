@@ -15,7 +15,10 @@ export class Player {
     this.world = null;
     this.pos = new THREE.Vector3(0, 80, 0);   // feet position
     this.prev = new THREE.Vector3(0, 80, 0);  // position at previous tick (render interpolation)
-    this.vel = new THREE.Vector3();           // blocks / tick
+    this.v = new THREE.Vector3();             // blocks / tick (internal)
+    const vv = this.v;                        // public `vel` is exposed in blocks / SECOND (m/s) for other modules
+    this.vel = { get x() { return vv.x * 20; }, set x(a) { vv.x = a / 20; }, get y() { return vv.y * 20; }, set y(a) { vv.y = a / 20; },
+      get z() { return vv.z * 20; }, set z(a) { vv.z = a / 20; }, set(x, y, z) { vv.set(x / 20, y / 20, z / 20); return this; } };
     this.yaw = 0;                             // 0 = looking toward -z
     this.pitch = 0;
     this.onGround = false;
@@ -70,7 +73,7 @@ export class Player {
 
   setWorld(w) { this.world = w; }
   teleport(x, y, z) {
-    this.pos.set(x, y, z); this.prev.copy(this.pos); this.vel.set(0, 0, 0);
+    this.pos.set(x, y, z); this.prev.copy(this.pos); this.v.set(0, 0, 0);
     this.fallDistance = 0; this.onGround = false;
   }
 
@@ -131,9 +134,9 @@ export class Player {
     dz = this._clip(2, dz); p.z += dz;
     this.onGround = oy < 0 && dy !== oy;
     this.hCollide = dx !== ox || dz !== oz;
-    if (dy !== oy) this.vel.y = 0;
-    if (dx !== ox) this.vel.x = 0;
-    if (dz !== oz) this.vel.z = 0;
+    if (dy !== oy) this.v.y = 0;
+    if (dx !== ox) this.v.x = 0;
+    if (dz !== oz) this.v.z = 0;
     return dy;
   }
 
@@ -153,7 +156,7 @@ export class Player {
       return;
     }
     this.tickCount++;
-    const p = this.pos, v = this.vel;
+    const p = this.pos, v = this.v;
 
     // ---- liquid / environment state
     const bx = Math.floor(p.x), bz = Math.floor(p.z);
@@ -350,12 +353,12 @@ export class Player {
     let dx = this.pos.x - fx, dz = this.pos.z - fz;
     let l = Math.hypot(dx, dz);
     if (l < 1e-4) { dx = Math.random() - 0.5; dz = Math.random() - 0.5; l = Math.hypot(dx, dz) || 1; }
-    this.vel.x = this.vel.x / 2 + dx / l * 0.4 * strength;
-    this.vel.z = this.vel.z / 2 + dz / l * 0.4 * strength;
-    this.vel.y = Math.min(0.4, this.vel.y / 2 + 0.4);
+    this.v.x = this.v.x / 2 + dx / l * 0.4 * strength;
+    this.v.z = this.v.z / 2 + dz / l * 0.4 * strength;
+    this.v.y = Math.min(0.4, this.v.y / 2 + 0.4);
     this.onGround = false;
   }
-  addVelocity(x, y, z) { this.vel.x += x; this.vel.y += y; this.vel.z += z; this.onGround = false; }
+  addVelocity(x, y, z) { this.v.x += x / 20; this.v.y += y / 20; this.v.z += z / 20; this.onGround = false; }
   _damageArmor(n) {
     const inv = this.game.inventory; if (!inv) return;
     for (let i = 36; i < 40; i++) {
@@ -371,6 +374,8 @@ export class Player {
   attackedBy(a, o) { return this.damage(a, o); }
 
   heal(a) { this.health = Math.min(this.maxHealth, this.health + a); }
+  setFire(sec) { this.setOnFire(sec); }
+  addXP(n) { this.addXp(n); }
   setOnFire(sec) { if (!this.creative && this.fireTicks < sec * 20) this.fireTicks = sec * 20; }
 
   die(o = {}) {

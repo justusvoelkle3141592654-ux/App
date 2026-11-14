@@ -250,7 +250,7 @@ export class Renderer {
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(80, 24, 12), mat);
     this.dome.renderOrder = -100; this.dome.frustumCulled = false; this.scene.add(this.dome);
 
-    this.celestial = new THREE.Group(); this.celestial.renderOrder = -90; this.scene.add(this.celestial);
+    this.celestial = new THREE.Group(); this.scene.add(this.celestial);
     const mkTex = (draw) => { const cv = document.createElement('canvas'); cv.width = cv.height = 32; draw(cv.getContext('2d')); return canvasTex(cv); };
     const sunTex = mkTex((c) => {
       c.fillStyle = '#000'; c.fillRect(0, 0, 32, 32);

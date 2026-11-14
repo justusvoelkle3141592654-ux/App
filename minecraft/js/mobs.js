@@ -987,7 +987,7 @@ export class Dragon extends Mob {
         const aboveY = Math.max(pe.y, 66) + (this.stateT < 1.6 ? 12 : 0);
         tp.set(pe.x, this.stateT < 1.6 ? aboveY : pe.y, pe.z); speed = this.stateT < 1.6 ? 17 : 24;
         const d3 = p.distanceTo(pe);
-        if (this.stateT >= 1.6 && d3 < 7 && this.hitCd <= 0) { this.hitCd = 1.6; m.damagePlayer(6 + Math.random() * 4, p, 6); this.state = 'recover'; this.stateT = 0; }
+        if (this.stateT >= 1.6 && d3 < 7 && this.hitCd <= 0) { this.hitCd = 1.6; m.damagePlayer(6 + Math.random() * 4, p, 2.5); this.state = 'recover'; this.stateT = 0; }
         if (this.stateT > 6.5) { this.state = 'circle'; this.stateT = 0; }
       } else { // recover
         const dx = p.x - pp.x, dz = p.z - pp.z, l = Math.hypot(dx, dz) || 1;
@@ -1036,12 +1036,7 @@ export class Dragon extends Mob {
     m.game.renderer?.addParticles?.('explosion', p.x, p.y, p.z, 0, 60); m.audio('explode');
     this.dead = true; m.removeMob(this); m.dragon = null;
     m.game.ui?.setBossBar?.(null);
-    m.giveXP(12000);
-    try { m.game.onDragonDead?.(); } catch (e) { console.error(e); }
-    try {
-      const w = m.world; const y = w.heightAt?.(0, 0);
-      if (y !== undefined && w.getBlock(0, y, 0) === 0) w.setBlock(0, y, 0, B.DRAGON_EGG);
-    } catch (e) { /* ignore */ }
+    try { m.game.onDragonDead?.(); } catch (e) { console.error(e); } // Game gibt XP, fuellt Portal, setzt das Drachenei
   }
 }
 

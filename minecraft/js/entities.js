@@ -72,14 +72,16 @@ export class EntityManager {
   playerTargetable() { return this.playerAlive() && this.game.gamemode !== 'creative' && this.game.gamemode !== 'spectator'; }
   damagePlayer(amount, src, kbStrength = 0) {
     const p = this.game.player; if (!p || !this.playerAlive()) return;
-    p.damage?.(amount, src);
-    if (kbStrength && p.vel && src) {
-      const dx = p.pos.x - src.x, dz = p.pos.z - src.z, l = Math.hypot(dx, dz) || 1;
-      p.vel.x += dx / l * kbStrength; p.vel.z += dz / l * kbStrength; p.vel.y = Math.max(p.vel.y, 5);
-    }
+    if (p.hurt) p.hurt(amount, { type: 'mob', from: src ? { x: src.x, z: src.z } : undefined, knockback: kbStrength || 1 });
+    else p.damage?.(amount, src);
   }
-  audio(name, vol) { try { this.game.audio?.play?.(name, vol); } catch (e) { /* ignore */ } }
-  giveXP(n) { if (n <= 0) return; const g = this.game; try { if (g.addXP) g.addXP(n); else if (g.player?.addXP) g.player.addXP(n); else g.ui?.addXP?.(n); } catch (e) { /* ignore */ } }
+  audio(name, vol) {
+    const MAP = { explode: 'explosion', shoot: 'bow', fireball: 'ignite', hurt: null, death: null, dragon_death: 'explosion', dragon_growl: null, hit: 'hit' };
+    const n = name in MAP ? MAP[name] : name; if (!n) return;
+    try { this.game.audio?.play?.(n, vol); } catch (e) { /* ignore */ }
+  }
+  pushPlayer(x, y, z) { const p = this.game.player; if (!p) return; if (p.addVelocity) p.addVelocity(x / 20, y / 20, z / 20); else if (p.vel) { p.vel.x += x / 20; p.vel.y += y / 20; p.vel.z += z / 20; } }
+  giveXP(n) { if (n <= 0) return; const g = this.game; try { if (g.player?.addXp) g.player.addXp(n); else if (g.addXP) g.addXP(n); else if (g.player?.addXP) g.player.addXP(n); } catch (e) { /* ignore */ } }
   brightnessAt(x, y, z, full) {
     if (full) return 1;
     const w = this.world, ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
@@ -281,7 +283,7 @@ export class EntityManager {
         if (p.owner === 'mob') {
           if (this.playerAlive() && Math.abs(p.pos.x - pp.x) < 0.45 && Math.abs(p.pos.z - pp.z) < 0.45 && p.pos.y > pp.y - 0.1 && p.pos.y < pp.y + 1.9) {
             hit = true;
-            if (this.game.gamemode !== 'creative') { this.damagePlayer(p.damage, p.source ? p.source.pos : { x: p.pos.x - p.vel.x, y: p.pos.y, z: p.pos.z - p.vel.z }); if (p.kind === 'fireball') { this.game.player?.setFire?.(5); } }
+            if (this.game.gamemode !== 'creative') { this.damagePlayer(p.damage, p.source ? p.source.pos : { x: p.pos.x - p.vel.x, y: p.pos.y, z: p.pos.z - p.vel.z }, 0.6); if (p.kind === 'fireball') { this.game.player?.setOnFire?.(5); } }
             this._removeProj(p); break;
           }
         } else {
@@ -324,7 +326,7 @@ export class EntityManager {
     if (ok) {
       r?.addParticles?.('portal', pl?.pos.x ?? x, (pl?.pos.y ?? y) + 1, pl?.pos.z ?? z, 0, 24);
       if (p.onLand) p.onLand({ x, y, z });
-      else if (pl) { if (pl.teleport) pl.teleport(x, y, z); else pl.pos.set(x, y, z); if (pl.vel) pl.vel.set(0, 0, 0); if (this.game.gamemode !== 'creative') pl.damage?.(5); }
+      else if (pl) { if (pl.teleport) pl.teleport(x, y, z); else pl.pos.set(x, y, z); if (pl.vel) pl.vel.set(0, 0, 0); if (this.game.gamemode !== 'creative') { if (pl.hurt) pl.hurt(5, { type: 'fall', ignoreInvuln: true }); else pl.damage?.(5); } }
       r?.addParticles?.('portal', x, y + 1, z, 0, 24); this.audio('teleport');
     }
     this._removeProj(p);
@@ -396,8 +398,7 @@ export class EntityManager {
       const exposure = ray ? 0.35 : 1, impact = (1 - d / R) * exposure, dmg = ((impact * impact + impact) / 2 * 7 * R + 1) * 0.5;
       const dl = d || 1;
       if (e.player) {
-        if (this.game.gamemode !== 'creative') pl.damage?.(dmg, { x, y, z });
-        if (pl.vel) { pl.vel.x += dx / dl * impact * 12; pl.vel.z += dz / dl * impact * 12; pl.vel.y += impact * 7; }
+        if (this.game.gamemode !== 'creative') { if (pl.hurt) pl.hurt(dmg, { type: 'explosion', from: { x, z }, knockback: 0.5 + impact * 2 }); else pl.damage?.(dmg, { x, y, z }); this.pushPlayer(dx / dl * impact * 6, impact * 4, dz / dl * impact * 6); }
       } else { e.mob.hurt(dmg, { x: dx, z: dz }); e.mob.vel.y += impact * 4; }
     }
     // Item-Entities in der Naehe wegschleudern (nicht zerstoeren)
@@ -489,7 +490,7 @@ export class EntityManager {
       const p = this._pendingCrystals[i], cx = Math.floor(p.x / 16), cz = Math.floor(p.z / 16);
       if (w.getChunk && !w.getChunk(cx, cz)) { if (w.ensureChunk) { try { w.ensureChunk(cx, cz); } catch (e) { /* ignore */ } budget--; } else continue; }
       let y = w.heightAt?.(p.x, p.z);
-      if (!y || y < 20) y = (p.y ?? 0) + (p.h ?? 1);
+      if (!y || y < 20) y = (p.y ?? 0) + (p.h ?? 1) + 1;
       this._pendingCrystals.splice(i, 1);
       this.spawnMob('crystal', p.x + 0.5, y, p.z + 0.5);
     }
