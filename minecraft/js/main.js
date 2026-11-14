@@ -64,7 +64,7 @@ function say(text) {
 }
 game.say = say;
 game.addXP = (n) => game.player?.addXp(n);
-game._dbg = () => ({ hitBlock, hitEntity: !!hitEntity, brk: { ...brk }, locked, noLock, canAct: canAct(), mouse: { ...game.mouse }, attackCd, use: { ...use } });
+game._dbg = () => ({ hitBlock, hitEntity: !!hitEntity, brk: { ...brk }, locked, noLock, canAct: canAct(), mouse: { ...game.mouse }, attackCd, use: { ...use }, fuses: fuses.map((f) => ({ ...f })), proj: projectiles.length });
 
 function nextFrame() { return new Promise((r) => requestAnimationFrame(() => r())); }
 const sel = () => game.inventory.getSelected();
