@@ -32,7 +32,7 @@ const canvas = document.getElementById('game') || (() => { const c = document.cr
 
 const tmpEye = new THREE.Vector3(), tmpDir = new THREE.Vector3(), camPos = new THREE.Vector3();
 const camProxy = { pos: camPos, yaw: 0, pitch: 0 };
-let locked = false, noLock = params.get('nolock') === '1' || !canvas.requestPointerLock;
+let everLocked = false, locked = false, noLock = params.get('nolock') === '1' || !canvas.requestPointerLock;
 let acc = 0, alpha = 0, lastT = 0, fps = 60, fpsAcc = 0, fpsN = 0;
 let texAcc = 0, spawnAcc = 0, furnAcc = 0;
 let wasUiOpen = false;
@@ -71,12 +71,14 @@ const sel = () => game.inventory.getSelected();
 const selDef = () => { const s = game.inventory.getSelected(); return s ? getItem(s.id) : null; };
 const entPos = (e) => e.pos || e.position || e.mesh?.position || e;
 
+let lockErrors = 0;
+function lockFailed() { if (!everLocked && ++lockErrors >= 3) noLock = true; }
 function lockPointer() {
   if (noLock || locked) return;
   try {
     const r = canvas.requestPointerLock();
-    if (r && r.catch) r.catch(() => { noLock = true; });
-  } catch (e) { noLock = true; }
+    if (r && r.catch) r.catch(lockFailed);
+  } catch (e) { lockFailed(); }
 }
 function unlockPointer() { try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) { /* */ } }
 const uiOpen = () => !!game.ui?.isOpen?.();
@@ -755,9 +757,10 @@ function setupInput() {
   window.addEventListener('blur', () => { for (const k in game.input) game.input[k] = false; game.mouse.left = game.mouse.right = false; });
   document.addEventListener('pointerlockchange', () => {
     locked = document.pointerLockElement === canvas;
+    if (locked) everLocked = true;
     if (!locked && game.started && !game.paused && !game.dead && !uiOpen() && !game.consoleOpen) openPause();
   });
-  document.addEventListener('pointerlockerror', () => { noLock = true; });
+  document.addEventListener('pointerlockerror', lockFailed);
   document.addEventListener('mousemove', (e) => {
     if (!locked || !canPlay()) return;
     const sc = mouseScale();
@@ -814,8 +817,9 @@ function debugLines() {
   const p = game.player, w = game.world;
   const x = p.pos.x, y = p.pos.y, z = p.pos.z;
   const bx = Math.floor(x), by = Math.floor(y), bz = Math.floor(z);
-  const yawDeg = ((((-p.yaw * 180 / Math.PI) % 360) + 360) % 360);
-  const facing = ['south (+Z)', 'west (-X)', 'north (-Z)', 'east (+X)'][Math.round(yawDeg / 90) % 4];
+  const yawCcw = (((p.yaw * 180 / Math.PI) % 360) + 360) % 360;      // 0 = north (-Z), +90 = west
+  const yawDeg = (yawCcw + 180) % 360;                                 // vanilla style: 0 = south (+Z)
+  const facing = ['north (-Z)', 'west (-X)', 'south (+Z)', 'east (+X)'][Math.round(yawCcw / 90) % 4];
   const hit = hitBlock ? `${hitBlock.x} ${hitBlock.y} ${hitBlock.z} (${BLOCKS[hitBlock.id]?.name})` : 'none';
   return [
     'Minecraft 1.12 (vanilla-style) (' + fps.toFixed(0) + ' fps)',
