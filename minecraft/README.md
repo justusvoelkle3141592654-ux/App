@@ -19,3 +19,8 @@ WASD, Leertaste (Springen / Creative: Doppeltipp = Fliegen), Shift (Schleichen),
 
 ## Bekannte Lücken
 Kein Speichern/Laden; keine Dörfer/Schluchten; Stronghold ist ein einzelner Raum; Ghast und Magma Cube fehlen; Enderdrache ohne Blockzerstörung/Atem; Fackeln nur aufrecht; Ton nur synthetisch und ungehört getestet; 4-s-Wartezeit im Nether-Portal und Truhe/Ofen-Screens nicht Ende-zu-Ende getestet.
+
+## Handy
+- `dist/minecraft.html`: einzelne Datei mit allem eingebettet (Touch-Steuerung inklusive), im Handy-Browser öffnen.
+- `dist/minecraft.apk`: Android-App (WebView, Vollbild, Querformat), mit Debug-Schlüssel signiert, Android 7.0+. Installation: "Unbekannte Apps installieren" erlauben.
+- Touch: linker Daumen = Laufen (Stick), rechter Daumen wischen = Umsehen, kurzes Tippen = Schlag, lang drücken = Abbauen. Buttons: HIT, USE (Platzieren/Benutzen), JUMP, SNK (Schleichen), RUN, INV, CMD, II (Pause), < > (Hotbar).

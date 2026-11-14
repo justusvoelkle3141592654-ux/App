@@ -5,12 +5,19 @@ import { Player, PLAYER_H, HW } from './player.js';
 import { GameAudio } from './audio.js';
 import { runCommand } from './commands.js';
 import { setupTouch, isTouchDevice } from './touch.js';
+import * as M_textures from './textures.js';
+import * as M_world from './world.js';
+import * as M_render from './render.js';
+import * as M_inventory from './inventory.js';
+import * as M_ui from './ui.js';
+import * as M_entities from './entities.js';
+const STATIC_MODS = { textures: M_textures, world: M_world, render: M_render, inventory: M_inventory, ui: M_ui, entities: M_entities };
 
 const params = new URLSearchParams(location.search);
 const MODS = {};
 async function loadMods() {
   for (const n of ['textures', 'world', 'render', 'inventory', 'ui', 'entities']) {
-    try { MODS[n] = await import(`./${n}.js`); } catch (e) { console.error('[main] failed to load module ' + n, e); MODS[n] = null; }
+    try { MODS[n] = STATIC_MODS[n]; } catch (e) { console.error('[main] failed to load module ' + n, e); MODS[n] = null; }
   }
 }
 
