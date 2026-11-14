@@ -136,13 +136,13 @@ function buildPlatform(w, x, y, z, mat, hole = true) {
 }
 
 function endSpawn(w) {
-  ensureAroundSync(w, 0, -30, 2);
-  let h = w.heightAt?.(0, -30) || 0;
-  if (h > 20 && h < 120 && SOLID[w.getBlock(0, h - 1, -30)]) return { x: 0.5, y: h, z: -29.5 };
-  const s = findSafeSpot(w, 0, -30, 40, 110, false);
-  if (s) return s;
-  buildPlatform(w, 0, 60, -30, B.OBSIDIAN);
-  return { x: 0.5, y: 60, z: -29.5 };
+  const S = MODS.world?.END_SPAWN || { x: 0, y: 64, z: -30 };
+  ensureAroundSync(w, S.x, S.z, 2);
+  if (SOLID[w.getBlock(S.x, S.y - 1, S.z)] && !SOLID[w.getBlock(S.x, S.y, S.z)]) return { x: S.x + 0.5, y: S.y, z: S.z + 0.5 };
+  const sp = findSafeSpot(w, S.x, S.z, 40, 110, false);
+  if (sp) return sp;
+  buildPlatform(w, S.x, 64, S.z, B.OBSIDIAN);
+  return { x: S.x + 0.5, y: 64, z: S.z + 0.5 };
 }
 
 function setDimension(dim, pos, opts = {}) {
@@ -207,23 +207,9 @@ game.onDragonDead = () => {
   const w = game.worlds.end || game.world;
   say('The Ender Dragon has been defeated!');
   game.player.addXp(12000);
-  let cnt = {};
-  for (let y = 40; y < 100; y++) for (let x = -8; x <= 8; x++) for (let z = -8; z <= 8; z++) {
-    if (w.getBlock(x, y, z) === B.BEDROCK_END_EXIT) cnt[y] = (cnt[y] || 0) + 1;
-  }
-  let L = null, best = 0;
-  for (const k in cnt) if (cnt[k] > best) { best = cnt[k]; L = +k; }
-  if (L === null) { // no fountain present: build a little one
-    const h = w.heightAt?.(0, 0) || 64;
-    L = h;
-    for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) if (Math.hypot(x, z) <= 3.2 && Math.hypot(x, z) > 2.2) w.setBlock(x, L, z, B.BEDROCK_END_EXIT, 0);
-    for (let y = 1; y <= 4; y++) w.setBlock(0, L + y - 1 + 0, 0, B.BEDROCK_END_EXIT, 0);
-  }
-  for (let x = -3; x <= 3; x++) for (let z = -3; z <= 3; z++) {
-    if (x * x + z * z <= 6.5 && w.getBlock(x, L, z) !== B.BEDROCK_END_EXIT) w.setBlock(x, L, z, B.END_PORTAL, 0);
-  }
-  let top = L; while (w.getBlock(0, top + 1, 0) === B.BEDROCK_END_EXIT) top++;
-  if (w.getBlock(0, top, 0) !== B.BEDROCK_END_EXIT) top = L - 1;
+  try { MODS.world.fillEndExitPortal(w); } catch (e) { console.error('fillEndExitPortal', e); }
+  // dragon egg on top of the centre pillar
+  let top = 60; for (let y = 60; y < 110; y++) if (w.getBlock(0, y, 0) === B.BEDROCK_END_EXIT) top = y;
   w.setBlock(0, top + 1, 0, B.DRAGON_EGG, 0);
 };
 

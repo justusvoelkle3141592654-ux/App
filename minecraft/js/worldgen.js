@@ -155,7 +155,7 @@ export class OverworldGen {
     let coast = (cont + 0.2) / 0.25; coast = coast < 0 ? 0 : coast > 1 ? 1 : coast * coast * (3 - 2 * coast);
     const base = cont < -0.2 ? (cont + 0.2) * 45 : (cont + 0.2) * 14;
     const amp = 1.5 + 6 * rough * rough;
-    const mount = mt > 0.22 ? (mt - 0.22) * 90 * coast : 0;
+    const mount = mt > 0.22 ? (mt - 0.22) * 60 * coast : 0;
     let h = Math.round(SEA + base + hill * amp * (0.35 + 0.65 * coast) + det * (0.4 + 0.6 * coast) + mount);
     if (h < 28) h = 28; else if (h > 118) h = 118;
     let b;
@@ -263,7 +263,7 @@ export class OverworldGen {
           const q = y >> 2, t = (y & 3) * 0.25;
           const a = pa[q] + (pa[q + 1] - pa[q]) * t;
           const bb = pb[q] + (pb[q + 1] - pb[q]) * t;
-          let carve = a * a + bb * bb < 0.0055;
+          let carve = a * a + bb * bb < 0.0075;
           if (!carve) {
             const cc = pc[q] + (pc[q + 1] - pc[q]) * t;
             carve = cc > 0.62 + (y > 40 ? (y - 40) * 0.01 : 0);
@@ -391,12 +391,12 @@ export class NetherGen {
       for (let gy = 0; gy < 17; gy++) {
         const wy = gy * 8;
         let d = this.n1.n3(wx * 0.012, wy * 0.022, wz * 0.012) * 0.65 + this.n2.n3(wx * 0.035, wy * 0.055, wz * 0.035) * 0.35;
-        if (wy < 36) d += (36 - wy) / 36 * 1.4;
-        if (wy > 96) d += (wy - 96) / 32 * 1.6;
+        if (wy < 14) d += (14 - wy) / 14 * 2.0;
+        if (wy > 104) d += (wy - 104) / 24 * 2.2;
         grid[(gx * 5 + gz) * 17 + gy] = d;
       }
     }
-    const thr = 0.06;
+    const thr = 0.1;
     for (let lz = 0; lz < 16; lz++) for (let lx = 0; lx < 16; lx++) {
       const gx = lx >> 2, gz = lz >> 2, fx = (lx & 3) * 0.25, fz = (lz & 3) * 0.25;
       const w00 = (1 - fx) * (1 - fz), w10 = fx * (1 - fz), w01 = (1 - fx) * fz, w11 = fx * fz;

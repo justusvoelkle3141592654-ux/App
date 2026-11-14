@@ -211,7 +211,6 @@ function updateLightAt(c, i, oldId, newId, hasSky) {
 
 // ---------------------------------------------------------------- world
 const DIRS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-let SEQ = 0;
 
 export class World {
   constructor(seed, dim = 'overworld') {
@@ -323,6 +322,7 @@ export class World {
     if (ez) this._markNb(cx, cz + ez);
     if (ex && ez) this._markNb(cx + ex, cz + ez);
     if (old !== id) updateLightAt(c, i, old, id, this.hasSky);
+    if ((old === B.LOG || old === B.LOG_BIRCH || old === B.LOG_SPRUCE) && id !== old) this._wakeLeaves(x, y, z);
     if (!(opts && opts.silent)) {
       for (let k = 0; k < this.listeners.length; k++) this.listeners[k](x, y, z, old, id);
       this._schAround(x, y, z);
@@ -469,7 +469,8 @@ export class World {
       const k = due[i];
       const y = k % 128; const r = (k - y) / 128; const zr = r % 2097152; const z = zr - 1048576; const x = (r - zr) / 2097152 - 1048576;
       const id = this._gb(x, y, z);
-      switch (NU[id]) {
+      switch (NU[id] || (RT[id] === 3 ? 7 : 0)) {
+        case 7: this._leafCheck(x, y, z); break;
         case 1: case 2: this._fluid(x, y, z); break;
         case 3: this._gravity(x, y, z); break;
         case 4: this._support(x, y, z); break;
@@ -478,6 +479,15 @@ export class World {
       }
     }
   }
+
+  // a log vanished: let natural leaves nearby re-check for wood after a short random delay
+  _wakeLeaves(x, y, z) {
+    for (let dy = -3; dy <= 4; dy++) for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
+      const t = this._gb(x + dx, y + dy, z + dz);
+      if (RT[t] === 3 && (this._gm(x + dx, y + dy, z + dz) & 1)) this._sch(x + dx, y + dy, z + dz, 8 + this._ri(80));
+    }
+  }
+  _leafCheck(x, y, z) { this._randomTick(3, x, y, z, this._gb(x, y, z)); }
 
   _flowable(id) { return id === AIR || id === B.TALL_GRASS || id === B.FLOWER_RED || id === B.FLOWER_YELLOW || id === B.TORCH || id === B.FIRE; }
 

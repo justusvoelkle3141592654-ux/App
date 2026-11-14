@@ -335,7 +335,7 @@ function getTemplate(type) {
   let H = 16; while (H < cy + rowH) H *= 2;
   const canvas = makeCanvas(W, H), ctx = canvas.getContext('2d');
   let glowCanvas = null, gctx = null;
-  const anyGlow = spec.glowAll || parts.some((p) => p.glow);
+  const anyGlow = parts.some((p) => p.glow);
   if (anyGlow) { glowCanvas = makeCanvas(W, H); gctx = glowCanvas.getContext('2d'); }
   const rn = mulberry(type.length * 7919 + type.charCodeAt(0));
   for (const p of parts) {
@@ -346,7 +346,6 @@ function getTemplate(type) {
       for (const k of allFaces) fillNoise(ctx, R[k], p.base, p.noise, rn, k === 'top' ? 1.08 : k === 'bottom' ? 0.8 : 1);
       if (p.fx) p.fx(ctx, R, rn);
       if (p.glow && gctx) p.glow(gctx, R, rn);
-      if (spec.glowAll && gctx) for (const k of allFaces) { gctx.fillStyle = 'rgb(255,255,255)'; gctx.fillRect(R[k].x, R[k].y, R[k].w, R[k].h); }
     }
     p.geo = makeBoxGeo(p.size, p.off, R, W, H);
   }
@@ -369,7 +368,7 @@ function instantiate(tpl, mat, type) {
     g.userData.base = g.position.clone();
     if (p.geo) {
       const m = new THREE.Mesh(p.geo, mat); m.frustumCulled = false; g.add(m);
-      if (glowMat && (p.glow || tpl.glowAll)) { const m2 = new THREE.Mesh(p.geo, glowMat); m2.frustumCulled = false; g.add(m2); }
+      if (glowMat && p.glow) { const m2 = new THREE.Mesh(p.geo, glowMat); m2.frustumCulled = false; g.add(m2); }
     }
     (p.parent ? parts[p.parent] : model).add(g);
     parts[p.n] = g;
@@ -854,7 +853,6 @@ export class Mob {
       case 'blaze': {
         for (let r = 0; r < 3; r++) {
           const g = p['ring' + r]; g.rotation.y = t * (2.2 - r * 0.5) * (r % 2 ? -1 : 1);
-          g.children.forEach((c, k) => { c.position.y = g.userData.base.y + 0 + Math.sin(t * 2 + k + r) * 0.0; });
         }
         p.ring0.position.y = Math.sin(t * 2.0) * 1.0; p.ring1.position.y = Math.sin(t * 2.3 + 1) * 1.0; p.ring2.position.y = Math.sin(t * 2.6 + 2) * 1.0;
         break;

@@ -49,7 +49,7 @@ export class EntityManager {
   constructor(game) {
     this.game = game;
     this.mobs = []; this.items = []; this.projectiles = []; this.tnts = []; this.crystals = []; this.pending = [];
-    this.dragon = null; this.dim = game.dimension || 'overworld'; this._lastDim = null;
+    this.dragon = null; this.dim = game.dimension || 'overworld'; this._lastDim = this.dim === 'end' ? null : this.dim;
     this.timeOfDay = game.time ?? 6000; this.spawnT = 0; this.passiveT = 0; this.boost = 8; this._extSpawnAt = -1e9; this._clock = 0;
     this._pendingCrystals = []; this.mergeT = 0; this._errLogged = false;
     this._getTile = null; this._pillars = null;
