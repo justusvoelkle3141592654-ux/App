@@ -63,6 +63,7 @@ function say(text) {
   console.log('[chat]', text);
 }
 game.say = say;
+game._dbg = () => ({ hitBlock, hitEntity: !!hitEntity, brk: { ...brk }, locked, noLock, canAct: canAct(), mouse: { ...game.mouse }, attackCd, use: { ...use } });
 
 function nextFrame() { return new Promise((r) => requestAnimationFrame(() => r())); }
 const sel = () => game.inventory.getSelected();
@@ -281,7 +282,7 @@ function breakBlock(x, y, z, byPlayer = true) {
     else if (id === B.SNOW || id === B.ICE || id === B.GLASS) { /* nothing */ }
     else if (id === B.CHEST || id === B.FURNACE || id === B.FURNACE_LIT) {
       dropAt(def.drop, def.dropCount, cx, cy, cz);
-      const items = game.ui?.removeContainer?.(x, y, z) || game.ui?.takeContents?.(x, y, z);
+      const items = game.ui?.breakContainer?.(x, y, z);
       if (Array.isArray(items)) for (const s of items) if (s) dropAt(s.id, s.count, cx, cy, cz);
     } else {
       let n = def.dropCount || 1;
@@ -661,7 +662,7 @@ function handleDeath() {
     for (const s of game.inventory.takeAll()) dropAt(s.id, s.count, p.pos.x, p.pos.y + 0.8, p.pos.z);
   }
   unlockPointer();
-  if (game.ui?.openDeath) game.ui.openDeath(respawn, p.score | 0);
+  if (game.ui?.openDeath) game.ui.openDeath(respawn, () => { game.ui.openMainMenu?.(() => respawn()); });
   else setTimeout(respawn, 1500);
 }
 function respawn() {
@@ -681,20 +682,21 @@ function onKey(e, down) {
   const inp = game.input;
   const now = performance.now() / 1000;
   if (!game.started) return;
+  if (uiOpen()) { if (down === false) { if (k === 'KeyW') sprintLatch = false; } return; } // UI handles its own keys (Esc, E, digits, Q)
   if (k === 'ControlLeft' || k === 'ControlRight') { ctrlHeld = down; e.preventDefault?.(); }
   if (game.consoleOpen) return;
   if (down && !e.repeat) {
     if (k === 'F3') { e.preventDefault(); game.showDebug = !game.showDebug; if (!game.showDebug) game.ui?.debug?.([]); return; }
     if (k === 'Escape') {
-      if (uiOpen()) { game.ui.closeScreen?.(); lockPointer(); e.preventDefault(); e.stopImmediatePropagation(); }
-      else if (!game.paused && !game.dead && (!locked)) { openPause(); }
+      if (!game.paused && !game.dead && !locked && !game.consoleOpen) { openPause(); }
       return;
     }
     if (k === 'KeyE') {
       if (game.dead || game.paused) return;
       e.preventDefault(); e.stopImmediatePropagation();
-      if (uiOpen()) { game.ui.closeScreen?.(); lockPointer(); }
-      else { game.ui?.openInventory?.(); unlockPointer(); }
+      for (const kk in game.input) game.input[kk] = false;
+      game.mouse.left = game.mouse.right = false;
+      game.ui?.openInventory?.(); unlockPointer();
       return;
     }
     if (!canPlay()) return;
@@ -738,25 +740,10 @@ function dropSelected(all) {
 }
 
 function openConsole(prefill) {
-  game.consoleOpen = true; unlockPointer();
-  let el = document.getElementById('mc-console');
-  if (!el) {
-    el = document.createElement('input'); el.id = 'mc-console'; el.autocomplete = 'off'; el.spellcheck = false;
-    el.style.cssText = 'position:fixed;left:4px;right:4px;bottom:4px;height:28px;z-index:200;background:rgba(0,0,0,.6);color:#fff;border:1px solid #666;font:18px monospace;padding:0 6px;outline:none;box-sizing:border-box';
-    document.body.appendChild(el);
-    el.addEventListener('keydown', (e) => {
-      e.stopPropagation();
-      if (e.key === 'Enter') { const t = el.value; closeConsole(); if (t) runCommand(game, t); }
-      else if (e.key === 'Escape') closeConsole();
-    });
-  }
-  el.style.display = 'block'; el.value = prefill || ''; el.focus();
   for (const k in game.input) game.input[k] = false;
-}
-function closeConsole() {
-  const el = document.getElementById('mc-console');
-  if (el) { el.style.display = 'none'; el.blur(); }
-  game.consoleOpen = false; lockPointer();
+  game.mouse.left = game.mouse.right = false;
+  if (game.ui?.openChat) { game.ui.openChat((t) => { if (t) runCommand(game, t); }, prefill || ''); unlockPointer(); return; }
+  const t = prompt('Chat / command', prefill || ''); if (t) runCommand(game, t);
 }
 
 function openPause() {
@@ -765,7 +752,7 @@ function openPause() {
   for (const k in game.input) game.input[k] = false;
   game.mouse.left = game.mouse.right = false;
   const resume = () => { game.paused = false; lockPointer(); };
-  if (game.ui?.openPause) game.ui.openPause(resume, () => { game.ui.openOptions?.(() => { game.paused = false; openPause(); }); }, () => { game.paused = false; });
+  if (game.ui?.openPause) game.ui.openPause(resume, undefined, () => { game.ui.openMainMenu?.(() => { game.paused = false; lockPointer(); }); });
   else setTimeout(resume, 50);
 }
 
@@ -835,23 +822,6 @@ function updateTarget() {
   if (key !== lastSel) { lastSel = key; game.renderer?.setSelection?.(key ? hitBlock : null); }
 }
 
-function syncFurnaces(dt) {
-  furnAcc += dt;
-  if (furnAcc < 0.5) return;
-  furnAcc = 0;
-  const ui = game.ui; const map = ui?.furnaces || ui?.furnaceData;
-  if (!map || !map.forEach) return;
-  const w = game.world;
-  map.forEach((f, key) => {
-    const [x, y, z] = String(key).split(',').map(Number);
-    if (Number.isNaN(z)) return;
-    const id = w.getBlock(x, y, z);
-    const lit = !!(f && f.burn > 0);
-    if (lit && id === B.FURNACE) w.setBlock(x, y, z, B.FURNACE_LIT, w.getMeta(x, y, z));
-    else if (!lit && id === B.FURNACE_LIT) w.setBlock(x, y, z, B.FURNACE, w.getMeta(x, y, z));
-  });
-}
-
 function debugLines() {
   const p = game.player, w = game.world;
   const x = p.pos.x, y = p.pos.y, z = p.pos.z;
@@ -881,7 +851,7 @@ function frame(t) {
   if (!(dt > 0)) dt = 0.016; if (dt > 0.1) dt = 0.1;
   fpsAcc += dt; fpsN++; if (fpsAcc >= 0.5) { fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; }
   const g = game, p = g.player;
-  if (!g.started) return;
+  if (!g.started) { g.ui?.update?.(dt); return; }
   // settings
   const st = g.settings;
   if (g.renderer) {
@@ -921,7 +891,6 @@ function frame(t) {
     spawnAcc += dt;
     if (spawnAcc >= 0.5) { g.entities?.tickSpawning?.(spawnAcc, g.dimension, g.time); spawnAcc = 0; }
     g.ui?.tickFurnaces?.(dt);
-    syncFurnaces(dt);
   } else { alpha = 1; }
 
   // texture animation ~10 Hz
@@ -1019,7 +988,20 @@ async function boot() {
     catch (e) { console.error('renderer', e); }
   }
   if (MODS.ui) {
-    try { game.ui = new MODS.ui.UI(rootEl(), game, game.textures); } catch (e) { console.error('ui', e); }
+    try {
+      game.ui = new MODS.ui.UI(rootEl(), game, game.textures);
+      game.ui.onDrop?.((st) => {
+        const p = game.player; p.getEye(tmpEye, 1); p.getDir(tmpDir);
+        const ent = game.entities?.addItem?.(st.id, st.count, tmpEye.x + tmpDir.x * 0.5, tmpEye.y - 0.3, tmpEye.z + tmpDir.z * 0.5, new THREE.Vector3(tmpDir.x * 4, tmpDir.y * 4 + 2, tmpDir.z * 4));
+        if (ent && typeof ent === 'object') ent.pickupDelay = 40;
+      });
+      game.ui.onClose?.(() => { if (game.started && !game.paused && !game.dead) lockPointer(); });
+      game.ui.onFurnaceLit?.((x, y, z, lit) => {
+        const w = game.world, id = w.getBlock(x, y, z);
+        if (lit && id === B.FURNACE) w.setBlock(x, y, z, B.FURNACE_LIT, w.getMeta(x, y, z));
+        else if (!lit && id === B.FURNACE_LIT) w.setBlock(x, y, z, B.FURNACE, w.getMeta(x, y, z));
+      });
+    } catch (e) { console.error('ui', e); }
   }
   if (MODS.entities) {
     try { game.entities = new MODS.entities.EntityManager(game); } catch (e) { console.error('entities', e); }

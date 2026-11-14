@@ -1,0 +1,7 @@
+/* ui.css — container styles for the canvas-based GUI (ui.js draws everything itself) */
+.mc-ui { position: fixed; inset: 0; pointer-events: none; user-select: none; -webkit-user-select: none; overflow: hidden;
+  font-family: "Minecraft", "Courier New", monospace; z-index: 20; }
+.mc-ui canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: -moz-crisp-edges; pointer-events: none; }
+.mc-ui canvas.mc-xhair { mix-blend-mode: difference; }
+.mc-ui canvas.mc-screen { cursor: default; }

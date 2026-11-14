@@ -50,7 +50,7 @@ export class Player {
   get food() { return this.hunger; } set food(v) { this.hunger = v; }
   get foodLevel() { return this.hunger; }
   get level() { return this.xpLevel; }
-  get xp() { return this.xpProgress; }               // 0..1 bar fill (vanilla: experience)
+  get xp() { return this.xpTotal; } set xp(v) { if (v > this.xpTotal) this.addXp(v - this.xpTotal); }
   get position() { return this.pos; }
   get isDead() { return this.dead; }
   get creative() { return this.game.gamemode === 'creative'; }

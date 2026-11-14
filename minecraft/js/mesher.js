@@ -87,6 +87,7 @@ export function setMesherAtlas(atlas) {
   }
 }
 function safeUV(atlas, name, fallback) {
+  if (atlas.names && !atlas.names.includes(name) && name !== '__missing') { if (fallback) return safeUV(atlas, fallback); }
   try { const u = atlas.uv(name); if (u) return u; } catch (e) { /* ignore */ }
   if (fallback) return safeUV(atlas, fallback);
   return [0, 0, 1, 1];
@@ -299,7 +300,7 @@ export function meshChunk(chunk, nbr) {
             break;
           }
           case 2: // torch
-            emitBox(g, id, x, y, z, 0.4375, 0, 0.4375, 0.5625, 0.625, 0.5625, 0b111111, ps[base], pl[base], 0.0625);
+            emitBox(g, id, x, y, z, 0.4375, 0, 0.4375, 0.5625, 0.6875, 0.5625, 0b111111, ps[base], pl[base], 0.125);
             break;
           case 3: { // cactus
             const sky = ps[base], blk = pl[base];
