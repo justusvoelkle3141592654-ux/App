@@ -4,6 +4,7 @@ import { B, I, BLOCKS, ITEMS, getItem, breakTime, canHarvest } from './registry.
 import { Player, PLAYER_H, HW } from './player.js';
 import { GameAudio } from './audio.js';
 import { runCommand } from './commands.js';
+import { setupTouch, isTouchDevice } from './touch.js';
 
 const params = new URLSearchParams(location.search);
 const MODS = {};
@@ -32,7 +33,7 @@ const canvas = document.getElementById('game') || (() => { const c = document.cr
 
 const tmpEye = new THREE.Vector3(), tmpDir = new THREE.Vector3(), camPos = new THREE.Vector3();
 const camProxy = { pos: camPos, yaw: 0, pitch: 0 };
-let everLocked = false, locked = false, noLock = params.get('nolock') === '1' || !canvas.requestPointerLock;
+let everLocked = false, locked = false, noLock = params.get('nolock') === '1' || !canvas.requestPointerLock || isTouchDevice();
 let acc = 0, alpha = 0, lastT = 0, fps = 60, fpsAcc = 0, fpsN = 0;
 let texAcc = 0, spawnAcc = 0, furnAcc = 0;
 let wasUiOpen = false;
@@ -1002,6 +1003,7 @@ async function boot() {
   portalOverlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(120,40,200,.55),rgba(60,10,120,.9));z-index:40;mix-blend-mode:screen';
   document.body.appendChild(portalOverlay);
   setupInput();
+  setupTouch(game);
   window.addEventListener('resize', () => { game.renderer?.resize?.(); });
   requestAnimationFrame(frame);
 
